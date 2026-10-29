@@ -35,8 +35,11 @@ Logs are JSON, one object per line, on stdout.
 
 ### Run it locally
 
-You need Docker and Python 3.15. Commands are for a Unix shell. On Windows use
-WSL, or set variables and activate the virtual environment the PowerShell way.
+Requirements:
+
+- Docker
+- Python 3.15
+- A Unix shell. On Windows, use WSL.
 
 Start Postgres:
 

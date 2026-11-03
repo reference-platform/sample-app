@@ -3,13 +3,14 @@
 Demo application for the [reference platform](https://github.com/reference-platform/docs).
 
 A small notes app. A request goes from the browser to `web`, then to `api`,
-then to Postgres.
+then to Postgres. A background `worker` reads the notes from the api on a timer.
 
 | Service | Language | Role | Folder |
 |---|---|---|---|
 | web | Go | HTML front end, port 8080 | `web/` |
 | api | Python (FastAPI) | HTTP API, port 8000 | `api/` |
 | db | Postgres | Storage | official image |
+| worker | Go | Background loop, probes on port 8080 | `worker/` |
 | migrate | dbmate | Applies the SQL migrations once, before the api starts | `db/` |
 
 ## Run
@@ -40,12 +41,17 @@ web:
 | `GET /` | HTML page with the newest 20 notes and a form. Returns 502 if the api is down. |
 | `POST /notes` | Form post. Sends the note to the api, then redirects to `/`. |
 
-Both services have two probe endpoints:
+worker: no business endpoints. It counts the newest notes (up to 200) every
+`INTERVAL` and logs the number.
 
-| Endpoint | What it does |
-|---|---|
-| `GET /healthz` | The process is up. Checks nothing else. |
-| `GET /readyz` | The dependency answers: Postgres for the api, the api for web. Returns 503 if not. |
+Every service has two probe endpoints:
+
+| Endpoint | api and web | worker |
+|---|---|---|
+| `GET /healthz` | The process is up. Checks nothing else. | The loop ran within the last three intervals. |
+| `GET /readyz` | The dependency answers: Postgres for the api, the api for web. | The last api call succeeded within the last three intervals. |
+
+Both return 503 when the check fails.
 
 ## Configuration
 
@@ -54,16 +60,17 @@ All settings are environment variables.
 | Variable | Service | Default | Meaning |
 |---|---|---|---|
 | `DATABASE_URL` | api | none, required | Postgres connection string |
-| `API_URL` | web | none, required | Base URL of the api |
-| `PORT` | both | api `8000`, web `8080` | Listen port |
+| `API_URL` | web, worker | none, required | Base URL of the api |
+| `INTERVAL` | worker | `30s` | Time between runs, for example `10s` or `1m` |
+| `PORT` | all | api `8000`, web and worker `8080` | Listen port |
 | `LOG_LEVEL` | api | `INFO` | Log level |
 
 Logs are JSON, one object per line, on stdout.
 
 ## Develop
 
-Requirements: Python 3.15 for the api, Go 1.27 for web, and a Unix shell (on
-Windows, use WSL). The tests need no database and no other service.
+Requirements: Python 3.15 for the api, Go 1.27 for web and worker, and a Unix
+shell (on Windows, use WSL). The tests need no database and no other service.
 
 api:
 
@@ -77,7 +84,7 @@ ruff format --check .
 python -m pytest
 ```
 
-web:
+web and worker (run the same commands in `worker/`):
 
 ```
 cd web
@@ -107,7 +114,7 @@ the schema. It starts without waiting for Postgres and answers `/readyz` with
 
 ## Images
 
-Both service images run as a non-root user. The web image is built from
-`scratch` and holds one static binary.
+All service images run as a non-root user. The web and worker images are built
+from `scratch` and hold one static binary.
 
 All rights reserved. See [LICENSE](LICENSE).

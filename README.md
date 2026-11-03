@@ -119,9 +119,9 @@ from `scratch` and hold one static binary.
 
 ## CI
 
-GitHub Actions runs on every push and pull request: lint and tests for the api,
-`gofmt`, `go vet` and tests for web and worker, then a test build of every
-image for `linux/amd64`.
+GitHub Actions runs on every pull request and on every push to `main`: lint and
+tests for the api, `gofmt`, `go vet` and tests for web and worker, then a test
+build of every image for `linux/amd64`.
 
 Each service has its own version. On a push to `main`, a service is released
 only if a commit touched its folder since its last tag. The version comes from

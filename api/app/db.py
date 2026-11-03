@@ -4,14 +4,6 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS notes (
-    id bigserial PRIMARY KEY,
-    text text NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now()
-)
-"""
-
 
 class Notes(Protocol):
     def open(self) -> None: ...
@@ -24,13 +16,16 @@ class Notes(Protocol):
 class PostgresNotes:
     def __init__(self, url: str):
         self.pool = ConnectionPool(
-            url, min_size=1, max_size=5, open=False, kwargs={"row_factory": dict_row}
+            url,
+            min_size=1,
+            max_size=5,
+            timeout=5,
+            open=False,
+            kwargs={"row_factory": dict_row},
         )
 
     def open(self):
-        self.pool.open(wait=True, timeout=30)
-        with self.pool.connection() as conn:
-            conn.execute(SCHEMA)
+        self.pool.open()
 
     def close(self):
         self.pool.close()

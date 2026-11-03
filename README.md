@@ -117,4 +117,25 @@ the schema. It starts without waiting for Postgres and answers `/readyz` with
 All service images run as a non-root user. The web and worker images are built
 from `scratch` and hold one static binary.
 
+## CI
+
+GitHub Actions runs on every push and pull request: lint and tests for the api,
+`gofmt`, `go vet` and tests for web and worker, then a test build of every
+image for `linux/amd64`. On a push to `main`, it builds the images for
+`linux/amd64` and `linux/arm64` and pushes them to GitHub Container Registry,
+tagged with the full git SHA:
+
+```
+ghcr.io/reference-platform/sample-app-api:<sha>
+ghcr.io/reference-platform/sample-app-web:<sha>
+ghcr.io/reference-platform/sample-app-worker:<sha>
+ghcr.io/reference-platform/sample-app-migrate:<sha>
+```
+
+Check the platforms of an image with:
+
+```
+docker buildx imagetools inspect ghcr.io/reference-platform/sample-app-web:<sha>
+```
+
 All rights reserved. See [LICENSE](LICENSE).

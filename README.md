@@ -119,23 +119,31 @@ from `scratch` and hold one static binary.
 
 ## CI
 
-GitHub Actions runs on every push and pull request: lint and tests for the api,
-`gofmt`, `go vet` and tests for web and worker, then a test build of every
-image for `linux/amd64`. On a push to `main`, it builds the images for
-`linux/amd64` and `linux/arm64` and pushes them to GitHub Container Registry,
-tagged with the full git SHA:
+GitHub Actions runs on every pull request and on every push to `main`: lint and
+tests for the api, `gofmt`, `go vet` and tests for web and worker, then a test
+build of every image for `linux/amd64`.
+
+Each service has its own version. On a push to `main`, a service is released
+only if a commit touched its folder since its last tag. The version comes from
+the conventional commit messages: `feat` raises the minor number, `fix` and
+other types raise the patch number, and `BREAKING CHANGE` raises the major
+number. A commit that contains `[skip-release]` is ignored.
+
+For a released service the workflow builds the image for `linux/amd64` and
+`linux/arm64`, pushes it to GitHub Container Registry with two tags, the version
+and the full git SHA, and then creates the git tag after the push:
 
 ```
+ghcr.io/reference-platform/sample-app-api:1.4.0
 ghcr.io/reference-platform/sample-app-api:<sha>
-ghcr.io/reference-platform/sample-app-web:<sha>
-ghcr.io/reference-platform/sample-app-worker:<sha>
-ghcr.io/reference-platform/sample-app-migrate:<sha>
+git tag: api-v1.4.0
 ```
 
+The services are `api`, `web`, `worker` and `migrate` (built from `db/`).
 Check the platforms of an image with:
 
 ```
-docker buildx imagetools inspect ghcr.io/reference-platform/sample-app-web:<sha>
+docker buildx imagetools inspect ghcr.io/reference-platform/sample-app-web:<version>
 ```
 
 All rights reserved. See [LICENSE](LICENSE).

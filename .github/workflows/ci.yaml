@@ -60,6 +60,7 @@ jobs:
         run: go test -race ./...
 
   images:
+    name: images (${{ matrix.service }})
     needs: [api, go]
     runs-on: ubuntu-24.04
     permissions:

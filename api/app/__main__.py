@@ -6,6 +6,7 @@ from app.logs import setup_logging
 from app.main import create_app
 
 setup_logging()
+# log_config=None sends the uvicorn logs through the JSON handler.
 uvicorn.run(
     create_app(),
     host="0.0.0.0",

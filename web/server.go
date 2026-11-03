@@ -38,6 +38,7 @@ func newServer(api string, log *slog.Logger) http.Handler {
 		log:    log,
 	}
 	mux := http.NewServeMux()
+	// {$} matches only "/", not every path.
 	mux.HandleFunc("GET /{$}", s.index)
 	mux.HandleFunc("POST /notes", s.addNote)
 	mux.HandleFunc("GET /healthz", s.healthz)
@@ -60,6 +61,7 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) {
 	}
 	data.Notes = notes
 
+	// Render before writing, so a template error can still return a clean 500.
 	var buf bytes.Buffer
 	if err := page.Execute(&buf, data); err != nil {
 		s.log.Error("render failed", "error", err)

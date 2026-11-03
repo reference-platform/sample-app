@@ -2,56 +2,70 @@
 
 Demo application for the [reference platform](https://github.com/reference-platform/docs).
 
-## api
+A small notes app. A request goes from the browser to `web`, then to `api`,
+then to Postgres.
 
-A small HTTP API in Python (FastAPI) that stores short text notes in Postgres.
-It gives the platform a realistic workload: a service with a database,
-health probes, structured logs and a container image.
+| Service | Language | Role | Folder |
+|---|---|---|---|
+| web | Go | HTML front end, port 8080 | `web/` |
+| api | Python (FastAPI) | HTTP API, port 8000 | `api/` |
+| db | Postgres | Storage | official image |
+| migrate | dbmate | Applies the SQL migrations once, before the api starts | `db/` |
 
-A request to `POST /api/notes` is validated, then written to the `notes` table
-through a small pool of database connections. `GET /api/notes` reads the newest
-rows. The two probe endpoints let an orchestrator tell "the process is up"
-(`/healthz`) from "the process can serve traffic" (`/readyz`, which needs the
-database).
+## Run
+
+Requirements: Docker with Compose.
+
+```
+docker compose up --build
+```
+
+Open `http://localhost:8081`, add a note and check it with
+`curl -s localhost:8000/api/notes`. `docker compose down` stops the stack and
+keeps the data. Add `-v` to remove the data too.
+
+## Endpoints
+
+api:
 
 | Endpoint | What it does |
 |---|---|
-| `GET /healthz` | The process is up. Does not touch the database. |
-| `GET /readyz` | The database answers. Returns 503 if it does not. |
 | `POST /api/notes` | Stores a note. Body: `{"text": "hello"}`. |
 | `GET /api/notes` | Lists the newest notes. Optional `?limit=` (1 to 200). |
 
-### Configuration
+web:
 
-All settings come from environment variables.
+| Endpoint | What it does |
+|---|---|
+| `GET /` | HTML page with the newest 20 notes and a form. Returns 502 if the api is down. |
+| `POST /notes` | Form post. Sends the note to the api, then redirects to `/`. |
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `DATABASE_URL` | none, required | Postgres connection string |
-| `PORT` | `8000` | Listen port |
-| `LOG_LEVEL` | `INFO` | Log level |
+Both services have two probe endpoints:
+
+| Endpoint | What it does |
+|---|---|
+| `GET /healthz` | The process is up. Checks nothing else. |
+| `GET /readyz` | The dependency answers: Postgres for the api, the api for web. Returns 503 if not. |
+
+## Configuration
+
+All settings are environment variables.
+
+| Variable | Service | Default | Meaning |
+|---|---|---|---|
+| `DATABASE_URL` | api | none, required | Postgres connection string |
+| `API_URL` | web | none, required | Base URL of the api |
+| `PORT` | both | api `8000`, web `8080` | Listen port |
+| `LOG_LEVEL` | api | `INFO` | Log level |
 
 Logs are JSON, one object per line, on stdout.
 
-### Run it locally
+## Develop
 
-Requirements:
+Requirements: Python 3.15 for the api, Go 1.27 for web, and a Unix shell (on
+Windows, use WSL). The tests need no database and no other service.
 
-- Docker
-- Python 3.15
-- A Unix shell. On Windows, use WSL.
-
-Start Postgres:
-
-```
-docker network create sample
-docker run -d --name sample-pg --network sample \
-  -e POSTGRES_USER=sample -e POSTGRES_PASSWORD=sample -e POSTGRES_DB=sample \
-  -p 127.0.0.1:5432:5432 \
-  postgres:18.6-trixie
-```
-
-Install, lint and test:
+api:
 
 ```
 cd api
@@ -63,42 +77,37 @@ ruff format --check .
 python -m pytest
 ```
 
-Run the service:
+web:
 
 ```
-DATABASE_URL=postgresql://sample:sample@localhost:5432/sample python -m app
+cd web
+gofmt -l .
+go vet ./...
+go test -race ./...
 ```
 
-Try it from another terminal:
+`gofmt -l .` prints nothing when the code is formatted.
+
+To run a service from source, start the database with its schema and point the
+service at it:
 
 ```
-curl -s localhost:8000/healthz
-curl -si localhost:8000/readyz
-curl -s -X POST localhost:8000/api/notes -H 'content-type: application/json' -d '{"text":"hello"}'
-curl -s localhost:8000/api/notes
+docker compose up -d migrate
+DATABASE_URL=postgresql://sample:sample@localhost:5432/sample python -m app   # in api/
+API_URL=http://localhost:8000 PORT=8081 go run .                              # in web/
 ```
 
-### Run it in a container
+## Database changes
 
-```
-docker build -t sample-app-api:dev api
-docker run --rm --network sample -p 127.0.0.1:8000:8000 \
-  -e DATABASE_URL=postgresql://sample:sample@sample-pg:5432/sample \
-  sample-app-api:dev
-```
+The schema lives in `db/migrations/` as plain SQL files, one per change, with an
+`up` and a `down` part. The `migrate` image applies them with
+[dbmate](https://github.com/amacneil/dbmate) and exits. The api never changes
+the schema. It starts without waiting for Postgres and answers `/readyz` with
+503 until the database is reachable.
 
-Clean up:
+## Images
 
-```
-docker rm -f sample-pg
-docker network rm sample
-```
-
-### Limits
-
-- The `notes` table is created at startup. A real deployment uses a migration
-  tool or a migration job.
-- The service waits up to 30 seconds for the database at startup, then exits.
-  The orchestrator restarts it.
+Both service images run as a non-root user. The web image is built from
+`scratch` and holds one static binary.
 
 All rights reserved. See [LICENSE](LICENSE).

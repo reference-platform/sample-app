@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes</title>
+  <style>
+    body { font-family: sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    form { display: flex; gap: 0.5rem; }
+    input { flex: 1; padding: 0.4rem; }
+    li { margin: 0.4rem 0; }
+    small { color: #666; }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>Notes</h1>
+  <form method="post" action="/notes">
+    <input name="text" maxlength="500" required autofocus>
+    <button>Add</button>
+  </form>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <ul>
+    {{range .Notes}}<li>{{.Text}} <small>{{.CreatedAt.Format "2006-01-02 15:04"}}</small></li>
+    {{end}}
+  </ul>
+</body>
+</html>

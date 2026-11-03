@@ -5,19 +5,23 @@ services:
       POSTGRES_USER: sample
       POSTGRES_PASSWORD: sample
       POSTGRES_DB: sample
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sample"]
-      interval: 2s
-      timeout: 3s
-      retries: 15
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  migrate:
+    build: db
+    environment:
+      DATABASE_URL: postgres://sample:sample@db:5432/sample?sslmode=disable
+    depends_on:
+      - db
 
   api:
     build: api
     environment:
       DATABASE_URL: postgresql://sample:sample@db:5432/sample
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8000:8000"
 
